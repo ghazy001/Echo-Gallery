@@ -1,0 +1,461 @@
+{% extends "main/base.html" %}
+{% load static %}
+
+{% block title %}Emotion Detector - Art Museum{% endblock %}
+
+{% block content %}
+<style>
+    .ai-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 80px 0 60px;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 60px;
+    }
+
+    .ai-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .ai-hero-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+    }
+
+    .ai-title {
+        color: white;
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 15px;
+        animation: fadeInUp 0.8s ease;
+    }
+
+    .ai-subtitle {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.2rem;
+        font-weight: 300;
+        animation: fadeInUp 0.8s ease 0.2s backwards;
+    }
+
+    /* shared card style */
+    .ai-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: none;
+        position: relative;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ai-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 50px rgba(102, 126, 234, 0.25);
+    }
+
+    .ai-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transform: scaleX(0);
+        transition: transform 0.4s ease;
+    }
+
+    .ai-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .ai-card-body {
+        padding: 30px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* button */
+    .ai-generate-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px 28px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .ai-generate-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .ai-generate-btn::after {
+        content: '✨';
+        margin-left: 8px;
+        transition: transform 0.3s ease;
+    }
+
+    .ai-generate-btn:hover::after {
+        transform: translateY(-2px) scale(1.1);
+    }
+
+    /* webcam frame */
+    .video-frame {
+        background: #1e293b;
+        border-radius: 16px;
+        overflow: hidden;
+        position: relative;
+        width: 100%;
+        max-height: 420px;
+        aspect-ratio: 4/3;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        border: 2px solid rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-frame video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* right card content */
+    .ai-preview-wrapper {
+        display: flex;
+        flex-direction: column;
+        color: #4a5568;
+        height: 100%;
+    }
+
+    .result-box {
+        border-radius: 12px;
+        padding: 16px 18px;
+        background: #f8fafc;
+        color: #2d3748;
+        font-size: 15px;
+        font-weight: 500;
+        line-height: 1.4;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 5px 15px rgba(15,23,42,0.08);
+        min-height: 60px;
+        margin-bottom: 20px;
+    }
+
+    .result-label {
+        font-size: .8rem;
+        font-weight: 600;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: 4px;
+    }
+
+    .result-main {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .result-debug {
+        font-size: .8rem;
+        color: #94a3b8;
+        word-break: break-word;
+        max-height: 150px;
+        overflow-y: auto;
+        margin-top: 8px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+    }
+
+    .recs-list {
+        margin-top: 10px;
+        font-size: .9rem;
+        line-height: 1.4;
+        color: #2d3748;
+    }
+
+    .recs-item {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        padding: 12px 14px;
+        display: flex;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .recs-thumb {
+        flex-shrink: 0;
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        background: #1e293b;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .recs-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .recs-meta {
+        font-size: .8rem;
+        color: #4a5568;
+    }
+
+    .recs-title {
+        font-weight: 600;
+        color: #2d3748;
+        font-size: .9rem;
+    }
+
+    /* animation */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* responsive */
+    @media (max-width: 768px) {
+        .ai-title {
+            font-size: 2.5rem;
+        }
+
+        .ai-hero {
+            padding: 60px 0 40px;
+        }
+
+        .ai-card-body {
+            padding: 25px;
+        }
+    }
+</style>
+
+<div class="ai-hero" style="margin-top: 105px">
+    <div class="container">
+        <div class="ai-hero-content">
+            <h1 class="ai-title">Emotion Detector</h1>
+            <p class="ai-subtitle">
+                Let the camera analyze your mood — then we’ll suggest artworks that match the vibe.
+            </p>
+        </div>
+    </div>
+</div>
+
+<section class="container" style="margin-bottom: 80px;">
+    <div class="row g-4">
+
+        <!-- Left column: webcam and button -->
+        <div class="col-12 col-lg-5" style="animation: fadeInUp 0.6s ease forwards;">
+            <div class="ai-card">
+                <div class="ai-card-body">
+                    <div class="event-icon" style="margin-bottom: 25px; font-size:2rem;">
+                        🎭
+                    </div>
+
+                    <div class="video-frame" style="margin-bottom:20px;">
+                        <video id="camera" autoplay playsinline></video>
+                    </div>
+
+                    <!-- hidden canvas used for capture -->
+                    <canvas id="capture-canvas" style="display:none;"></canvas>
+
+                    <button id="detect-btn" class="ai-generate-btn">
+                        Detect Emotion
+                    </button>
+
+                    <div style="font-size: 13px; color: #718096; margin-top: 12px; line-height:1.4;">
+                        We take a single frame from your camera, analyze facial expression,
+                        and never save it to the database.
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column: results and artwork recs -->
+        <div class="col-12 col-lg-7" style="animation: fadeInUp 0.6s ease 0.15s forwards;">
+            <div class="ai-card">
+                <div class="ai-card-body">
+                    <div class="ai-preview-wrapper">
+
+                        <!-- Detected mood -->
+                        <div class="result-box" id="result-box">
+                            <div class="result-label">Detected Emotion</div>
+                            <div class="result-main" id="result-main">No data yet</div>
+                            <div class="result-debug" id="result-debug"></div>
+                        </div>
+
+                        <!-- Artwork suggestions -->
+                        <div class="recs-list" id="recs-list">
+                            <!-- injected dynamically -->
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<script>
+const videoEl = document.getElementById("camera");
+const detectBtn = document.getElementById("detect-btn");
+const canvas = document.getElementById("capture-canvas");
+
+const resultMain = document.getElementById("result-main");
+const resultDebug = document.getElementById("result-debug");
+const recsList = document.getElementById("recs-list");
+
+// start webcam
+async function initCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" },
+            audio: false,
+        });
+        videoEl.srcObject = stream;
+    } catch (err) {
+        console.error("Camera error:", err);
+        resultMain.textContent = "Cannot access camera 😢";
+    }
+}
+
+// grab a frame from <video> as base64 jpeg
+function captureFrameAsBase64() {
+    const w = videoEl.videoWidth;
+    const h = videoEl.videoHeight;
+    if (!w || !h) {
+        console.warn("Video not ready yet.");
+        return null;
+    }
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(videoEl, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL("image/jpeg"); // "data:image/jpeg;base64,...."
+    return dataUrl.split(",")[1]; // strip "data:image/jpeg;base64,"
+}
+
+// render artwork recs on the right
+function renderRecommendations(artworks) {
+    if (!artworks || artworks.length === 0) {
+        recsList.innerHTML =
+            "<p style='color:#718096;font-size:.9rem;margin-top:12px;'>No artwork suggestions for this mood yet.</p>";
+        return;
+    }
+
+    let html = "";
+    artworks.forEach(a => {
+        html += `
+        <div class="recs-item">
+            <div class="recs-thumb">
+
+                ${a.image_url
+                    ? `<img src="${a.image_url}" alt="${a.title}"/>`
+                    : `<div style="color:#fff;font-size:.7rem;text-align:center;padding:4px;">No Image</div>`
+                }
+            </div>
+            <div>
+                <div class="recs-title">${a.title}</div>
+                <div class="recs-meta">${a.artist || "Unknown Artist"}</div>
+                <div style="font-size:.75rem;color:#718096;margin-top:4px;">${a.description || ""}</div>
+            </div>
+        </div>`;
+    });
+
+    recsList.innerHTML = html;
+}
+
+// click handler
+async function analyzeEmotion() {
+    const b64 = captureFrameAsBase64();
+    if (!b64) {
+        resultMain.textContent = "Could not capture frame";
+        return;
+    }
+
+    resultMain.textContent = "Analyzing...";
+    resultDebug.textContent = "";
+    recsList.innerHTML = "";
+
+    // 1. send frame to Django -> Face++
+    const resp = await fetch("{% url 'emotion_analyze' %}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_b64: b64 }),
+    });
+    const data = await resp.json();
+    console.log("emotion_analyze:", data);
+
+    if (!resp.ok || data.status !== "ok") {
+        resultMain.textContent = data.message || "Error";
+        resultDebug.textContent = data.error || "";
+        return;
+    }
+
+    const detectedEmotion = (data.simplified || data.dominant_emotion || "").toLowerCase();
+
+    resultMain.textContent = `You seem ${detectedEmotion}`;
+    resultDebug.textContent = JSON.stringify(data.raw, null, 2);
+
+    // 2. ask Django for artworks that match this emotion
+    const recResp = await fetch("{% url 'emotion_recommend' %}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emotion: detectedEmotion }),
+    });
+    const recData = await recResp.json();
+    console.log("emotion_recommend:", recData);
+
+    if (!recResp.ok || recData.status !== "ok") {
+        recsList.innerHTML = "<p style='color:#e53e3e;font-size:.9rem;margin-top:12px;'>Could not load artwork suggestions.</p>";
+        return;
+    }
+
+    renderRecommendations(recData.artworks);
+}
+
+detectBtn.addEventListener("click", analyzeEmotion);
+initCamera();
+</script>
+{% endblock %}
