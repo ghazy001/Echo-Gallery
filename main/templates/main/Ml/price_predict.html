@@ -1,0 +1,333 @@
+{% extends "main/base.html" %}
+{% load static %}
+{% block title %}Art Price Predictor - Art Museum{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+
+<style>
+  /* Hero */
+  .ai-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 80px 0 60px;
+    position: relative; overflow: hidden; margin-bottom: 60px;
+  }
+  .ai-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .ai-hero-content { position: relative; z-index: 1; text-align: center; }
+  .ai-title { color: #fff; font-size: 3.0rem; font-weight: 700; margin-bottom: 12px; animation: fadeInUp .8s ease; }
+  .ai-subtitle { color: rgba(255,255,255,.9); font-size: 1.1rem; font-weight: 300; animation: fadeInUp .8s ease .2s backwards; max-width: 720px; margin: 0 auto; line-height: 1.5; }
+
+  /* Layout + cards */
+  .container-narrow { max-width: 1150px; margin: 0 auto; padding: 0 16px; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  @media (min-width: 992px){ .grid { grid-template-columns: 440px 1fr; } }
+
+  .ai-card {
+    background: #fff; border-radius: 20px; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,.1);
+    transition: all .4s cubic-bezier(.175,.885,.32,1.275);
+    border: none; position: relative; height: 100%; display: flex; flex-direction: column;
+  }
+  .ai-card:hover { transform: translateY(-6px); box-shadow: 0 20px 50px rgba(102,126,234,.25); }
+  .ai-card::before { content:''; position:absolute; left:0; right:0; top:0; height:5px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transform: scaleX(0); transition: transform .4s ease; }
+  .ai-card:hover::before { transform: scaleX(1); }
+  .ai-card-body { padding: 28px; flex-grow: 1; display: flex; flex-direction: column; }
+
+  /* Forms */
+  label { font-weight: 600; color: #2d3748; margin: 10px 0 6px; display: block; font-size: .95rem; }
+  select, input, button {
+    width: 100%; padding: 12px 14px; border-radius: 12px;
+    border: 1px solid #cbd5e0; background: #fff; color: #1a202c; font-size: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,.02); transition: all .2s ease;
+  }
+  select:focus, input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,.2); }
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 14px 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff; border: none; border-radius: 50px; font-weight: 700; letter-spacing: .3px;
+    box-shadow: 0 4px 15px rgba(102,126,234,.3); cursor: pointer;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,.4); }
+  .btn-secondary{
+    background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:10px;
+    padding:10px 14px;font-weight:600;cursor:pointer
+  }
+  .btn-secondary:hover{background:#f9fafb}
+  .hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .inline { display: flex; gap: 8px; align-items: center; }
+
+  /* Map & preview */
+  .map-wrap { height: 300px; border-radius: 16px; overflow: hidden; border: 1px solid rgba(0,0,0,.08); }
+  .ai-preview { background: #1e293b; border-radius: 16px; min-height: 240px; padding: 18px;
+    border: 2px solid rgba(0,0,0,.05); box-shadow: 0 10px 25px rgba(0,0,0,.25); color: #cbd5e1; }
+
+  /* Result card */
+  .ai-result-card { background: #f8fafc; border-radius: 16px; padding: 20px 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.05); border: 1px solid rgba(0,0,0,.03); font-size: 14px; color: #1a202c; }
+  .badge { display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;padding:6px 10px;font-size:12px;margin-right:6px }
+
+  @keyframes fadeInUp { from { opacity:0; transform: translateY(30px);} to{ opacity:1; transform:none;} }
+  @media (max-width: 768px){
+    .ai-title{font-size:2.2rem}
+    .ai-hero{padding:60px 0 40px}
+    .ai-card-body{padding:24px}
+  }
+</style>
+
+<!-- HERO -->
+<div class="ai-hero" style="margin-top:105px">
+  <div class="container-narrow">
+    <div class="ai-hero-content">
+      <h1 class="ai-title">Art Price Predictor</h1>
+      <p class="ai-subtitle">Enter artwork details (size, medium, style, color palette, location). Our model estimates a fair market price.</p>
+    </div>
+  </div>
+</div>
+
+<!-- BODY -->
+<section class="container-narrow" style="margin-bottom:80px">
+  <div class="grid">
+    <!-- LEFT: FORM -->
+    <div class="ai-card" style="animation: fadeInUp .6s ease forwards;">
+      <div class="ai-card-body">
+        <form method="post" id="price-form">
+          {% csrf_token %}
+
+          <label>{{ form.artist.label }}</label>
+          {{ form.artist }}
+
+          <div class="two">
+            <div>
+              <label>{{ form.style.label|default:"Style" }}</label>
+              {{ form.style }}
+            </div>
+            <div>
+              <label>{{ form.subject.label }}</label>
+              {{ form.subject }}
+            </div>
+          </div>
+
+          <div class="two">
+            <div>
+              <label>{{ form.medium.label|default:"Medium" }}</label>
+              {{ form.medium }}
+            </div>
+            <div>
+              <label>{{ form.frame.label|default:"Frame" }}</label>
+              {{ form.frame }}
+            </div>
+          </div>
+
+          <!-- SIZE -->
+          <label>Size</label>
+          <div class="two">
+            <div class="inline"><span>H</span>{{ form.height }}</div>
+            <div class="inline"><span>W</span>{{ form.width }}</div>
+          </div>
+          <div class="two" style="margin-top:8px;">
+            <div>{{ form.unit }}</div>
+            <div>
+              {{ form.size }}
+              <div class="hint">Auto-formatted for the model (e.g. 20"x30" or 90x60cm).</div>
+            </div>
+          </div>
+
+          <!-- LOCATION + MAP -->
+          <label>Location</label>
+          <div class="two">
+            <div>{{ form.location }}</div>
+            <div><button class="btn-primary" type="button" id="open-map">Pick on map</button></div>
+          </div>
+          <div id="map-modal" style="display:none;margin-top:10px">
+            <div class="map-wrap" id="map"></div>
+            <div class="hint" id="map-hint">Click on the map to set city/country.</div>
+          </div>
+
+          <div class="two" style="margin-top:10px;">
+            <div>
+              <label>{{ form.delivery_days.label }}</label>
+              {{ form.delivery_days }}
+            </div>
+            <div>
+              <label>{{ form.shipment.label }}</label>
+              {{ form.shipment }}
+            </div>
+          </div>
+
+          <!-- COLOR (collapsible picker so it never hides other inputs) -->
+          <label>Color Palette</label>
+          <div class="two">
+            <div>{{ form.color_palette }}</div>
+            <div class="inline">
+              <input type="text" id="color_hex" name="color_hex" placeholder="#rrggbb"
+                     value="{{ form.color_hex.value|default:'' }}" />
+              <button type="button" class="btn-secondary" id="open-color">Pick color</button>
+            </div>
+          </div>
+
+          <div id="color-modal" style="display:none;margin-top:10px">
+            <div class="color-wrap" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px">
+              <div id="color-wheel" style="width:220px;height:220px;margin:8px auto 0"></div>
+              <div class="hint">Pick a color. We’ll suggest a palette (Warm/Cool/Earthy/Neutral). You can override it.</div>
+            </div>
+          </div>
+
+          <!-- OTHER ATTRS -->
+          <div class="two">
+            <div><label>{{ form.copy_or_original.label }}</label>{{ form.copy_or_original }}</div>
+            <div><label>{{ form.print_or_real.label }}</label>{{ form.print_or_real }}</div>
+          </div>
+
+          <div class="two">
+            <div><label>{{ form.environment.label }}</label>{{ form.environment }}</div>
+            <div><label>{{ form.mood.label }}</label>{{ form.mood }}</div>
+          </div>
+
+          <div class="two">
+            <div><label>{{ form.lighting.label }}</label>{{ form.lighting }}</div>
+            <div><label>{{ form.reproduction_type.label }}</label>{{ form.reproduction_type }}</div>
+          </div>
+
+          <label>{{ form.audience.label }}</label>
+          {{ form.audience }}
+
+          <button type="submit" class="btn-primary" style="margin-top:16px">Predict price</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT: RESULT -->
+    <div class="ai-card" style="animation: fadeInUp .6s ease .1s forwards;">
+      <div class="ai-card-body">
+        <h3 style="margin-top:0">Result</h3>
+        {% if prediction %}
+          <div style="font-size:20px;font-weight:800;margin-bottom:8px">
+            Estimated price:
+            <span style="background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;color:transparent">
+              ${{ prediction|floatformat:0 }}
+            </span>
+          </div>
+          <div class="hint">* Uses your inputs (size, style, medium, location, etc.).</div>
+        {% else %}
+          <div class="ai-preview" style="display:flex;align-items:center;justify-content:center;">
+            <div style="text-align:center;">
+              <div style="font-size:2rem;margin-bottom:10px;">🧮</div>
+              <div style="font-weight:600;color:#fff;">No estimate yet</div>
+              <div style="opacity:.8;">Fill the form on the left and submit.</div>
+            </div>
+          </div>
+        {% endif %}
+
+        <div style="margin-top:16px">
+          <span class="badge">Model: Random Forest</span>
+          <span class="badge">Target: log-price</span>
+          <span class="badge">Features: size, medium, style, location…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- JS: size auto-format, color wheel (collapsible), map picker -->
+<script>
+  // SIZE → auto build "size" to match model parser
+  const unitEl = document.getElementById("id_unit");
+  const hEl = document.getElementById("id_height");
+  const wEl = document.getElementById("id_width");
+  const sizeEl = document.getElementById("id_size");
+  function updateSizeString(){
+    const h = parseFloat(hEl?.value), w = parseFloat(wEl?.value);
+    const unit = unitEl?.value || "in";
+    if (!isNaN(h) && !isNaN(w)) {
+      sizeEl.value = unit === "in" ? `${h}"x${w}"` : `${h}x${w}cm`;
+    }
+  }
+  [hEl,wEl,unitEl].forEach(el => el && el.addEventListener("input", updateSizeString));
+
+  // COLOR PICKER (lazy init in a collapsible)
+  let colorPicker, colorPickerReady = false;
+  const colorBtn  = document.getElementById("open-color");
+  const colorBox  = document.getElementById("color-modal");
+  const colorHex  = document.getElementById("color_hex");
+  const paletteEl = document.getElementById("id_color_palette");
+
+  function hueToPaletteLabel(h){
+    if (h >= 25 && h < 70) return "Warm Tones";
+    if (h >= 70 && h < 170) return "Earthy Tones";
+    if (h >= 170 && h < 270) return "Cool Tones";
+    if ((h >= 270 && h <= 360) || (h >= 0 && h < 25)) return "Warm Tones";
+    return "Neutral Tones";
+  }
+
+  function ensureColorPicker(){
+    if (colorPickerReady) return;
+    colorPicker = new iro.ColorPicker("#color-wheel", { width: 220, color: colorHex.value || "#cc8866" });
+    colorPicker.on("color:change", (c)=>{
+      const hex = c.hexString;
+      const hue = c.hsl.h;
+      colorHex.value = hex;
+      const label = hueToPaletteLabel(hue);
+      if (paletteEl && !paletteEl.value){
+        for (const opt of paletteEl.options){
+          if (opt.text === label){ paletteEl.value = opt.value; break; }
+        }
+      }
+    });
+    colorPickerReady = true;
+  }
+
+  colorBtn?.addEventListener("click", ()=>{
+    const show = colorBox.style.display === "none";
+    colorBox.style.display = show ? "block" : "none";
+    if (show) ensureColorPicker();
+  });
+
+  // Manual hex entry also updates wheel if open
+  colorHex?.addEventListener("change", ()=>{
+    try { if (colorPickerReady) colorPicker.color.hexString = colorHex.value; } catch(e){}
+  });
+
+  // MAP (Leaflet) with reverse geocode → Location
+  const mapBtn = document.getElementById("open-map");
+  const mapModal = document.getElementById("map-modal");
+  const locInput = document.getElementById("id_location");
+  let map, marker;
+  function ensureMap(){
+    if (map) return;
+    map = L.map("map").setView([20,0], 2);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+    map.on("click", async (e)=>{
+      const { lat, lng } = e.latlng;
+      if (marker) marker.remove();
+      marker = L.marker([lat,lng]).addTo(map);
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+        const res = await fetch(url, {headers: {'Accept':'application/json'}});
+        const data = await res.json();
+        const city = data.address.city || data.address.town || data.address.village || data.address.hamlet || "";
+        const country = data.address.country || "";
+        const text = [city, country].filter(Boolean).join(", ");
+        locInput.value = text || `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+        document.getElementById("map-hint").innerText = `Picked: ${locInput.value}`;
+      } catch(err){
+        locInput.value = `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+      }
+    });
+  }
+  mapBtn?.addEventListener("click", ()=>{
+    mapModal.style.display = mapModal.style.display === "none" ? "block" : "none";
+    ensureMap();
+    setTimeout(()=> map && map.invalidateSize(), 120);
+  });
+</script>
+{% endblock %}
