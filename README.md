@@ -265,7 +265,7 @@ mysite/
 **👨‍💻 Ghazi Saoudi**
 Full-stack Developer | macOS Environment | Django Enthusiast
 📧 *contact: [saoudi.ghazi@esprit.tn](mailto:saoudi.ghazi@esprit.tn)*
-🔗 *GitHub: [@yourusername](https://github.com/ghazy001)*
+🔗 *GitHub: [@ghazy001](https://github.com/ghazy001)*
 
 ---
 
