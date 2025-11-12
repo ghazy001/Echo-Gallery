@@ -2,7 +2,7 @@
 
 A complete **Django-based CMS** for managing events, workshops, artworks, blog articles, and user interactions — with a modern dashboard for admins and a beautiful public frontend for visitors.
 
-Built with ❤️ using **Django 4.2**, **Bootstrap**, and **Vanilla JS**.
+Built with love ❤️ using **Django 4.2**, **Bootstrap**, and **Vanilla JS**.
 
 ---
 
